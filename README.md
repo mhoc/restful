@@ -22,7 +22,7 @@ These two methods are preferrable to a system that looks like e.g. `api.mycompan
 
 Its become something of a meme in the industry that every new API you write should start with `/v1`. 
 
-My take is: Don't do this. URLs are hierarchical, and prefixing the entire API with a `/v1` communicates that, when a `/v2` happens (put another way: when you have to break an API), every API will be replaced. The far more common situation arises when you have to break a single API; and you _don't_ want an API surface that looks like:
+My take is: Don't do this. URLs are hierarchical, and prefixing the entire API with a `/v1` communicates that, when a `/v2` happens (put another way: when you have to break an API), every API will be replaced. The far more common situation arises when you have to break a single API; and you don't want an API surface that looks like:
 
 - `GET /v1/users`
 - `GET /v2/users/123/roles`
@@ -31,15 +31,16 @@ Put another way: "If you're listing users, go ahead and use the v1 endpoint, but
 
 The only situation where putting the API version in the URL makes sense is when writing an RPC style API. For example: `POST /list_users/v2` is a totally reasonable path. But, this document covers restful APIs, not RPC-style APIs, and thus I would assert that a version number should not appear in the path of your API.
 
-Instead, consider implementing versioning as an HTTP header. Something simple like requiring an `X-VERSION: 1` header makes sense, or assuming `X-VERSION: 1` when a version header is not provided. Some popular APIs implement this as a date field, so the server can deduce which version of the API to serve based upon the date the client was written; e.g. `X-VERSION: 2024-04-04` may return the "v1" API, but `X-VERSION: 2024-05-05` may return the "v2" API. 
+Instead, consider implementing versioning as an HTTP header. Something simple like requiring a `X-VERSION: 1` header makes sense, or assuming `X-VERSION: 1` when a version header is not provided. Some popular APIs implement this as a date field, so the server can deduce which version of the API to serve based upon the date the client was written; e.g. `X-VERSION: 2024-04-04` may return the "v1" API, but `X-VERSION: 2024-05-05` may return the "v2" API. 
 
 ## Methods and Meanings
 
-There are five HTTP methods which your endpoints should use.
+There are six HTTP methods which your endpoints should use.
 
 | Method   | Description                                          |
 |----------|------------------------------------------------------|
-| `GET`    | Retrieve either one resource, or a list of resources |   
+| `HEAD`   | Return only whether a given resource exists or not.  |
+| `GET`    | Retrieve either one resource, or a list of resources |
 | `POST`   | Create a resource                                    |
 | `PUT`    | Replace the content of a resource                    |
 | `PATCH`  | Partially update the content of a resource           |
@@ -72,7 +73,11 @@ My point in going several steps down this path is: There is always a solution to
 
 ## No Uppercase
 
-None of the nouns in your paths should contain uppercase characters; they should instead match the regex `[a-z0-9_]+`; lowercase characters, underscores, and I suppose if you really need them, digits. IDs may naturally contain uppercase and lowercase characters, which is reasonable and fine.
+None of the nouns in your paths should contain uppercase characters; they should match the regex `[a-z0-9_]+`; lowercase characters, underscores, and I suppose if you really need them, digits. IDs may naturally contain uppercase and lowercase characters, which is reasonable and fine.
+
+The reason for this is mostly just consistency. It was once stated to me that some older devices which may connect to websites or APIs struggle with case sensitivity, so all-lowercase has wider support; this feels like a rare edge case, but given it doesn't _really_ matter and consistency is good, I follow all-lowercase.
+
+This rule applies equally to query parameters. 
 
 ## Prefer Pluralization
 
@@ -84,10 +89,10 @@ The nouns in your paths should generally be pluralized.
 
 The exception to this rule is when writing terminal path fragments which may refer to single fields on a resource. For example:
 
-- `GET /users/123/roles` is entirely plural and makes sense, because a user can have multiple roles.
-- `GET /users/123/birthday` mixes singular and plural, but still makes sense because a user may only have one birthday.
+- `GET /users/123/roles` makes sense, because a user can have multiple roles.
+- `GET /users/123/birthday` terminates with a singular noun, but still makes sense because a user may only have one birthday.
 
-This example is contrived, and wouldn't exist in a real API, because most fields which make sense to be singular would make the most sense to simply be returned on the e.g. `GET /users/123` response object. But, it can happen (for example: imagine if the `birthday` field, in this example, often contains an extremely large amount of data). 
+This example is contrived, and wouldn't exist in a real API, because most fields which make sense to be singular would make the most sense to simply be returned on the e.g. `GET /users/123` response object. But, it can happen; for example: imagine if the `birthday` field, in this example, often contains an extremely large amount of data such that we don't want to bundle it into the overall `user` object for performance reasons.
 
 ## Listing versus Fetching
 
@@ -117,12 +122,23 @@ Every resource listing endpoint should accept a `limit=N` query parameter. The i
 
 Beyond that, a more specific pagination schema is left to the implementation, but I generally prefer to keep it simple: `limit=N` and `offset=M`.
 
-The APIs response should not be a bare array; it should return metadata concerning at minimum the number of items in the total set; for example:
+The APIs response should return metadata concerning at minimum the number of items in the total set. My preferred method of doing this is to respond with the array of objects as the entire response, but provide this metadata in the response headers e.g.:
 
-```json
+```
+200 OK
+X-TOTAL: 598
+[
+  { "id": "12345", "name": "Mike" },
+  { "id": "54321", "name": "Bob" }
+]
+```
+
+You may also elect to use a response envelope, which is fine. More will be written on response envelopes later.
+
+```js
 {
-  "users": [],
-  "total": 124
+  "users": [ /* ... */ ],
+  "total": 598
 }
 ```
 
@@ -165,12 +181,58 @@ A second solution is to borrow a page from MongoDB or Firestore's book, and buil
 
 ## Status Codes
 
-TODO
+You should leverage HTTP whenever possible, and thus leverage the status codes HTTP provides.
+
+| Status Code | Description                                                                                                                                                                                                   |
+|-------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `200`       | The classic.                                                                                                                                                                                                  |
+| `201`       | "Created". You can use this with `POST` requests, but the only time it should matter is if you e.g. have an API which "upserts" resources on a `POST`; then it may `200` on an update, but `201` on a create. |
+| `202+`      | Not worth thinking about.                                                                                                                                                                                     |
+| `400`       | Classic. Malformed request.                                                                                                                                                                                   |
+| `401`       | Authentication failed. No API key provided, bad API Key, etc.                                                                                                                                                 |
+| `403`       | Authorization failed. API key was provided, we know who you are, but you don't have permission to do that.                                                                                                    |
+| `404`       | Classic                                                                                                                                                                                                       |
+| `500`       | Ruh roh                                                                                                                                                                                                       |
+
+Your platform might get more specific; for example, oftentimes a `500` means "internal server failure" whereas a `502` means "the server didn't even respond. Totally cool. 
 
 ## Response Envelopes
 
-asdf
+A response envelope might look like:
+
+```json
+{
+  "data": {},
+  "status": "success"
+}
+```
+
+I am not generally a fan of response envelopes, and I don't feel that APIs need them. HTTP is already an envelope; and it contains many useful dials and knobs with which you can communicate everything you might otherwise need to communicate via an envelope. 
+
+- A field like `status` is better communicated via the HTTP status code.
+- A field like `timestamp` is built-in to the HTTP spec.
+- When listing items via an array, a field like `count` to count the items on this page does not make sense, because the client will have to parse the whole array anyway, so they could just do `.length` or their language equivalent.
+- When listing items via an array, a field like `total` to count the total number of items regardless of pagination is useful, but could be moved into an HTTP repsonse header like `X-TOTAL`.
+
+Use the platform.
 
 ## Errors
 
-TODO
+When the server responds with a status code `>=400`, this is communicating that the server has entered an error state. When this happens, the server should respond with an error message in the response body, in plaintext. 
+
+```
+404 NOT FOUND
+
+no user with the id 123123 was found
+```
+
+The HTTP status code should be used to communicate the general class of error. If the server has a more specific error code it wants to return for debugging purposes, this should be returned as an HTTP header:
+
+```
+404 NOT FOUND
+X-ERROR-CODE: user_not_found
+
+user_not_found: no user with the id 123123 was found
+```
+
+Some server prefer returning a JSON response body with this information encoded into that body. This isn't unreasonable, but its arguable that anything is really gained by doing this, and simpler solutions are better. The vast majority of the time, clients don't implement special behavior depending on the kind of error returned; they display it, report it, etc. If they do implement special behavior depending on the kind of error, the vast majority of _those_ cases simply switch on the HTTP responses status code (e.g. oh that user doesn't exist? ok create them.) It is a definite minority of cases where a more specific error code, diagnostic information, etc is valuable; and thus complicating the response format or forcing clients to parse and traverse JSON only leads to more brittle error handling.
