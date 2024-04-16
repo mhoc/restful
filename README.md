@@ -116,9 +116,9 @@ The URL path itself should only contain globally unique IDs which uniquely selec
 
 Any selector on a noun which is not globally unique is best thought of as a filter; and should be placed in the route's query parameters: for example, `GET /users?status=enabled`. Filter parameters should never appear in a `GET` request's body, as GET requests should have no body.
 
-Filter query parameters should prefer matching keys to the response object of each resource; for example, if each user has a `{ "status": "enabled" }` field, the query parameter should read `?status=enabled`, not `?enabled=true`.
+Filter query parameters should prefer matching keys to the response object of each resource; for example, if each user has a `{ "status": "enabled" }` field, the query parameter should read `?status=enabled`, not `?enabled=true`. You should not prefix filterable fields with the word `filter`; for example, `status=enabled` is preferable to `filterStatus=enabled`. 
 
-Filter parameters can very quickly become more complex than simple string-to-string equivalence; for example, how would you represent a parameter that answers "return all users who are not enabled" (`status != enabled`)? I don't feel its appropriate to answer this here, but suffice to say that its a problem common and weird enough that it has caused many alternatives to REST to be invented. 
+Filter parameters can very quickly become more complex than simple string-to-string equivalence; for example, how would you represent a parameter that answers "return all users who are not enabled" (`status != enabled`)? I don't feel its appropriate to answer this here, but suffice to say that its a problem common and weird enough that it has caused many alternatives to REST to be invented. One opinion I have in this domain is: You shouldn't prematurely optimize your entire system when faced with this reality. A solution that looks like, for example, `status_neq=enabled` is preferrable to going all in with, I don't know, supporting writing SQL in your query parameters. 
 
 ## Pagination
 
