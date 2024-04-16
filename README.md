@@ -20,7 +20,18 @@ These two methods are preferrable to a system that looks like e.g. `api.mycompan
 
 ## Versioning
 
-TODO
+Its become something of a meme in the industry that every new API you write should start with `/v1`. 
+
+My take is: Don't do this. URLs are hierarchical, and prefixing the entire API with a `/v1` communicates that, when a `/v2` happens (put another way: when you have to break an API), every API will be replaced. The far more common situation arises when you have to break a single API; and you _don't_ want an API surface that looks like:
+
+- `GET /v1/users`
+- `GET /v2/users/123/roles`
+
+Put another way: "If you're listing users, go ahead and use the v1 endpoint, but if you're getting a user's roles use the v2 endpoint". That's weird.
+
+The only situation where putting the API version in the URL makes sense is when writing an RPC style API. For example: `POST /list_users/v2` is a totally reasonable path. But, this document covers restful APIs, not RPC-style APIs, and thus I would assert that a version number should not appear in the path of your API.
+
+Instead, consider implementing versioning as an HTTP header. Something simple like requiring an `X-VERSION: 1` header makes sense, or assuming `X-VERSION: 1` when a version header is not provided. Some popular APIs implement this as a date field, so the server can deduce which version of the API to serve based upon the date the client was written; e.g. `X-VERSION: 2024-04-04` may return the "v1" API, but `X-VERSION: 2024-05-05` may return the "v2" API. 
 
 ## Methods and Meanings
 
@@ -44,11 +55,20 @@ To query for a single user's roles, you may leverage a method+path like `GET /us
 
 Paths should always be designed around a series of alternating nouns and IDs; a noun like 'users', then a user's ID, then attributes on that user, then IDs on those attributes, onward and onward.
 
-## No Verbs
+## Verbs and Edge Cases
 
 Every word typed into the path of your URL should be a noun.
 
-You'll naturally come across examples with every API where the thing you're trying to do just doesn't make sense as a noun. Here's one example, to help you on the path of creativity toward expressing these things as nouns: Your system has some kind of synchronization procedure, and you want to kick off a manual invocation of this sync. When thinking of this in terms of RPCs, the call might be: `invokeSync(syncId: string)`. In a restful API, this might be: `POST /sync/:sync_id/invocation`. What are we invoking? The invocation; a noun.
+You'll naturally come across examples with every API where the thing you're trying to do just doesn't make sense as a noun. Here's one example: Your system has some kind of synchronization procedure, and you want to kick off a manual invocation of this sync. When thinking of this in terms of RPCs, the call might be: `invokeSync(syncId: string)`. In a restful API, this might be: `POST /syncs/:sync_id/invocations`. We're "creating an invocation"; even if that doesn't create a persistent _thing_ in the database, it still fits into the restful world as a noun. 
+
+Now, let's say you need an API to cancel this manual invocation. Assumedly, that `POST` call actually did create something in a database, with a primary key; and you could now call `DELETE /syncs/:sync_id/invocations/:invocation_id` to cancel it. 
+
+What if your API needs to support _both_ the actions of cancelling an in-progress sync, and deleting the existence of this sync invocation? How about something like:
+
+- Cancel in in-progress sync: `POST /syncs/:sync_id/invocations/:invocation_id/cancellation`
+- Delete the sync invocation entirely: `DELETE /syncs/:sync_id/invocations/:invocation_id`
+
+My point in going several steps down this path is: There is always a solution to these "my thing kinda looks like a verb" problems. Sometimes those solutions stretch the meaning of a "noun", or require some creativity. It helps if you think through the design of the entire system always keeping the nouns in mind; for example, maybe you aren't "cancelling a sync invocation", you're "creating a cancellation request for a sync invocation". Design the entire system under the impression that the only verbs you have in your lexicon are "create" "read" "update" and "delete". 
 
 ## No Uppercase
 
