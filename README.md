@@ -2,13 +2,19 @@
 
 This is a collection of some of the ideas I keep in mind while designing APIs and API endpoints.
 
-## One API, In The Host
+## One API, Preferably In The Host
 
-For a given company; we should have an API hosted on e.g. `api.mycompany.com`. This is the only token in the URL which is needed to designate that the given host is an API; put another way, a URL root like `https://api.mycompany.com/api/...` is unnecessary and stutters.
+The word "API" should appear once in any URL your server hosts. 
 
-## Domain Objects In The Path
+- `api.mycompany.com` is the most preferrable and common; a subdomain on the overall site.
+- `mycompany.com/api` as a path prefix also makes sense, in situations where we want the API to share the same root domain as e.g. the website.
+- `api.mycompany.com/api` unnecessarily stutters and should be avoided.
 
-Every API for a given company should be hosted as paths underneath this host. For example, a single company may have both a Users-centric and Tenant-centric API, which may on the backend be served by two different services. These should both be on the `api.mycompany.com` host, like: `api.mycompany.com/tenants` and `api.mycompany.com/users`, rather than e.g. `api-users.mycompany.com`. 
+## Abstract Implementation
+
+Every API for a given company should be hosted as paths underneath this host, regardless of how the APIs are implemented.
+
+For example, a single company may have both User-centric and Tenant-centric APIs, which may be served by two different logical services. These should both be on the `api.mycompany.com` host, like: `api.mycompany.com/tenants` and `api.mycompany.com/users`, rather than e.g. `api-users.mycompany.com`. 
 
 ## Environments and URLs
 
@@ -16,22 +22,20 @@ Less to do with APIs and more to do with setting up environments in general, but
 
 The second best way is to leverage the hierarchy intrinsic to DNS; `mycompany.com` hosts your website on `mycompany.com` and API on `api.mycompany.com`, while the staging environment lives on `staging.mycompany.com` and `api.staging.mycompany.com`.
 
-These two methods are preferrable to a system that looks like e.g. `api.mycompany.com` and `api-staging.mycompany.com`.
-
 ## Versioning
 
 Its become something of a meme in the industry that every new API you write should start with `/v1`. 
 
-My take is: Don't do this. URLs are hierarchical, and prefixing the entire API with a `/v1` communicates that, when a `/v2` happens (put another way: when you have to break an API), every API will be replaced. The far more common situation arises when you have to break a single API; and you don't want an API surface that looks like:
+My take is: Don't do this. URLs are hierarchical, and prefixing the entire API with a `/v1` communicates that, when a `/v2` happens every API will be replaced. The issue is, we don't usually break an entire API all at once; we break and are forced to version individual endpoints. You don't want an API surface that looks like:
 
 - `GET /v1/users`
 - `GET /v2/users/123/roles`
 
-Put another way: "If you're listing users, go ahead and use the v1 endpoint, but if you're getting a user's roles use the v2 endpoint". That's weird.
+This communicates to your users that they should use the v1 endpoint to list users, but the v2 endpoint to list a user's roles. Its weird. Its doesn't read well. 
 
-The only situation where putting the API version in the URL makes sense is when writing an RPC style API. For example: `POST /list_users/v2` is a totally reasonable path. But, this document covers restful APIs, not RPC-style APIs, and thus I would assert that a version number should not appear in the path of your API.
+One situation where putting the API version in the URL can make sense is when writing an RPC-style API. For example: `POST /list_users/v2` is a totally reasonable path. But, this document covers restful APIs, not RPC-style APIs, and thus I would assert that a version number should not appear in the path of your API.
 
-Instead, consider implementing versioning as an HTTP header. Something simple like requiring a `X-VERSION: 1` header makes sense, or assuming `X-VERSION: 1` when a version header is not provided. Some popular APIs implement this as a date field, so the server can deduce which version of the API to serve based upon the date the client was written; e.g. `X-VERSION: 2024-04-04` may return the "v1" API, but `X-VERSION: 2024-05-05` may return the "v2" API. 
+Instead, consider implementing versioning as an HTTP header. Something simple like requiring a `X-VERSION: 1` header can make sense, or assuming `X-VERSION: 1` when a version header is not provided. Some popular APIs implement this as a date field, so the server can deduce which version of the API to serve based upon the date the client was written; e.g. `X-VERSION: 2024-04-04` may return the "v1" API, but `X-VERSION: 2024-05-05` may return the "v2" API. 
 
 ## Methods and Meanings
 
