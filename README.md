@@ -46,7 +46,9 @@ Paths should always be designed around a series of alternating nouns and IDs; a 
 
 ## No Verbs
 
-TODO
+Every word typed into the path of your URL should be a noun.
+
+You'll naturally come across examples with every API where the thing you're trying to do just doesn't make sense as a noun. Here's one example, to help you on the path of creativity toward expressing these things as nouns: Your system has some kind of synchronization procedure, and you want to kick off a manual invocation of this sync. When thinking of this in terms of RPCs, the call might be: `invokeSync(syncId: string)`. In a restful API, this might be: `POST /sync/:sync_id/invocation`. What are we invoking? The invocation; a noun.
 
 ## No Uppercase
 
@@ -89,11 +91,57 @@ Filter query parameters should prefer matching keys to the response object of ea
 
 ## Pagination
 
-TODO
+Every API endpoint which list resources and does not paginate will break something, eventually. Don't take shortcuts.
+
+Every resource listing endpoint should accept a `limit=N` query parameter. The implementation on the backend should enforce this, with a sensible default and a sensible maximum value. 
+
+Beyond that, a more specific pagination schema is left to the implementation, but I generally prefer to keep it simple: `limit=N` and `offset=M`.
+
+The APIs response should not be a bare array; it should return metadata concerning at minimum the number of items in the total set; for example:
+
+```json
+{
+  "users": [],
+  "total": 124
+}
+```
 
 ## Put versus Patch
 
-TODO
+The difference between `PUT` and `PATCH` is subtle, but strict.
+
+- `PUT` replaces all updatable fields in the target resource with the provided object. E.g. `{ "name": "Mike" }` updating with `{}` becomes `{}`.
+- `PATCH` replaces the content of only the specified fields with those in the provided object. E.g. `{ "name": "Mike" }` patching with `{}` does not change.
+
+Observationally; most APIs need one or the other, and not both; and in fact, most APIs find more value in `PATCH` than `PUT`. But, as always, your mileage may vary.
+
+## Array Fields
+
+APIs should, generally, not publish array fields on resources.
+
+- `GET /users/123` could return `{ "roles": ["admin"] }`, but this is not desirable.
+- `GET /users/123/roles` is superior.
+
+Unbounded arrays may grow to be very large relative to the overall response size; and there is no consistent and general solution to modifying the content of array fields.
+
+- To append a new role to this field: `PATCH /users/123` with a body of `{ "roles": ["admin","superadmin"] }` would work, but it requires the caller to already know their current roles, which should not be necessary, and it introduces a race condition whereby other clients might have a different view of the user's pre-existing roles. `POST /users/123/roles` is more consistent.
+
+- To update items in an array: Without each items having a primary key, the only solution is to `PATCH` the entire array. Thus, for the pre-stated reasons, the better solution is to ensure each item in the array has its own primary key, and thus treat each item as its own restful resource: `PATCH /users/123/roles/456`.
+
+The exception to this rule enters when the order of items in the array field is material. When the ordering of items is material, then it becomes difficult to treat each item in the array as its own restful resource. You should ignore everything stated in this section and instead accept that any API you design will not be consistent nor convenient. 
+
+## Patching and Deleting Fields
+
+Imagine you have a schema for an object that resembles the following: `type User = { name?: string, /* ... */ }`.
+
+- An API like `PUT /users/:id` would allow for deleting the name, but would require the caller to know everything else about the user in order to delete just their name.
+- An API like `PATCH /users/:id` removes this need, but its non-obvious how to represent "delete the user's name" in the body.
+
+Javascript plays well with providing a body like `{ "name": null }`; but as a general rule this is somewhat risky. Other languages and frameworks may be unable to consistently disambiguate between `{}` and `{ "name": null }`. 
+
+A general, consistent solution is to instead write another API: `DELETE /users/:id/name`. 
+
+A second solution is to borrow a page from MongoDB or Firestore's book, and build a kind of DSL into your API like: `PATCH /users/:id` with a body `{ "name": { $delete: true } }`. This might be preferrable if you have a large number of fields which need to support deleting.
 
 ## Status Codes
 
@@ -102,3 +150,7 @@ TODO
 ## Response Envelopes
 
 asdf
+
+## Errors
+
+TODO
