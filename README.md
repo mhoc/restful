@@ -66,7 +66,7 @@ Now, let's say you need an API to cancel this manual invocation. Assumedly, that
 
 What if your API needs to support _both_ the actions of cancelling an in-progress sync, and deleting the existence of this sync invocation? How about something like:
 
-- Cancel in in-progress sync: `POST /syncs/:sync_id/invocations/:invocation_id/cancellation`
+- Cancel in in-progress sync: `POST /syncs/:sync_id/invocations/:invocation_id/cancellations`
 - Delete the sync invocation entirely: `DELETE /syncs/:sync_id/invocations/:invocation_id`
 
 My point in going several steps down this path is: There is always a solution to these "my thing kinda looks like a verb" problems. Sometimes those solutions stretch the meaning of a "noun", or require some creativity. It helps if you think through the design of the entire system always keeping the nouns in mind; for example, maybe you aren't "cancelling a sync invocation", you're "creating a cancellation request for a sync invocation". Design the entire system under the impression that the only verbs you have in your lexicon are "create" "read" "update" and "delete". 
@@ -87,7 +87,7 @@ The nouns in your paths should generally be pluralized.
 - Bad: `GET /user` and `GET /user/123`
 - Bad: `GET /users` and `GET /user/123`
 
-The exception to this rule is when writing terminal path fragments which may refer to single fields on a resource. For example:
+The exception to this rule is for terminal path fragments, which may refer to single fields on a resource. For example:
 
 - `GET /users/123/roles` makes sense, because a user can have multiple roles.
 - `GET /users/123/birthday` terminates with a singular noun, but still makes sense because a user may only have one birthday.
@@ -110,13 +110,15 @@ The URL path itself should only contain globally unique IDs which uniquely selec
 - Good: `GET /users/123123` (assuming `123123` is a globally unique ID)
 - Bad: `GET /users/enabled` (listing all enabled users? bad)
 
-Any selector on a noun which is not globally unique is best thought of as a filter; and should be placed in the route's query parameters: for example, `GET /users?status=enabled`.
+Any selector on a noun which is not globally unique is best thought of as a filter; and should be placed in the route's query parameters: for example, `GET /users?status=enabled`. Filter parameters should never appear in a `GET` request's body, as GET requests should have no body.
 
 Filter query parameters should prefer matching keys to the response object of each resource; for example, if each user has a `{ "status": "enabled" }` field, the query parameter should read `?status=enabled`, not `?enabled=true`.
 
+Filter parameters can very quickly become more complex than simple string-to-string equivalence; for example, how would you represent a parameter that answers "return all users who are not enabled" (`status != enabled`)? I don't feel its appropriate to answer this here, but suffice to say that its a problem common and weird enough that it has caused many alternatives to REST to be invented. 
+
 ## Pagination
 
-Every API endpoint which list resources and does not paginate will break something, eventually. Don't take shortcuts.
+Every API endpoint which list resources and does not paginate will eventually break. Don't take shortcuts.
 
 Every resource listing endpoint should accept a `limit=N` query parameter. The implementation on the backend should enforce this, with a sensible default and a sensible maximum value. 
 
