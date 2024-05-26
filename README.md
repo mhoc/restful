@@ -33,7 +33,7 @@ My take is: Don't do this. URLs are hierarchical, and prefixing the entire API w
 
 This communicates to your users that they should use the v1 endpoint to list users, but the v2 endpoint to list a user's roles. This is weird, and does not read well.
 
-One situation where putting the API version in the URL can make sense is when writing an RPC-style API. For example: `POST /list_users/v2` is a totally reasonable path. But, this document covers restful APIs, not RPC-style APIs, and thus I would assert that a version number should not appear in the path of your API.
+One situation where putting the API version in the URL may make sense is when writing an RPC-style API. For example: `POST /list_users/v2` is somewhat reasonable. But, this document covers restful APIs, not RPC-style APIs. Additionally; some developer tooling, such as the Chrome dev console, will display the "Name" of a network request as the last path segment; and having a bunch of `v2`s appear there isn't very productive. Ultimately, I wouldn't even do this.
 
 Instead, consider implementing versioning as an HTTP header. Something simple like requiring a `X-VERSION: 1` header can make sense, or assuming `X-VERSION: 1` when a version header is not provided. Some popular APIs implement this as a date field, so the server can deduce which version of the API to serve based upon the date the client was written; e.g. `X-VERSION: 2024-04-04` may return the "v1" API, but `X-VERSION: 2024-05-05` may return the "v2" API. 
 
