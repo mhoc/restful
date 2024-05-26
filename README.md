@@ -26,12 +26,12 @@ The second best way is to leverage the hierarchy intrinsic to DNS; `mycompany.co
 
 Its become something of a meme in the industry that every new API you write should start with `/v1`. 
 
-My take is: Don't do this. URLs are hierarchical, and prefixing the entire API with a `/v1` communicates that, when a `/v2` happens every API will be replaced. The issue is, we don't usually break an entire API all at once; we break and are forced to version individual endpoints. You don't want an API surface that looks like:
+My take is: Don't do this. URLs are hierarchical, and prefixing the entire API with a `/v1` communicates that when a `/v2` happens every API will be replaced. The issue is, we don't usually break an entire API all at once; we break and are forced to version individual endpoints. You don't want an API surface that looks like:
 
 - `GET /v1/users`
 - `GET /v2/users/123/roles`
 
-This communicates to your users that they should use the v1 endpoint to list users, but the v2 endpoint to list a user's roles. Its weird. Its doesn't read well. 
+This communicates to your users that they should use the v1 endpoint to list users, but the v2 endpoint to list a user's roles. This is weird, and does not read well.
 
 One situation where putting the API version in the URL can make sense is when writing an RPC-style API. For example: `POST /list_users/v2` is a totally reasonable path. But, this document covers restful APIs, not RPC-style APIs, and thus I would assert that a version number should not appear in the path of your API.
 
