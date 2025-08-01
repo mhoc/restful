@@ -1,6 +1,11 @@
 This is a collection of some of the ideas I keep in mind while designing APIs and API endpoints.
 
+## What Is REST?
+
+Nearly zero APIs which purport to be "REST" APIs or "RESTful" do a remotely adequate job of conforming to the original design ideals of REST as outlined by Roy Fielding in the early '90s. This document is no different. This document is aligned with the industrialized perversion of the idea of REST APIs more-so than any idealized concept few have actually built. 
+
 ## One API, Preferably In The Host
+
 The word "API" should appear once in any URL your server hosts.
 
 - `api.mycompany.com` is the most preferrable and common; a subdomain on the overall site.
@@ -8,16 +13,19 @@ The word "API" should appear once in any URL your server hosts.
 - `api.mycompany.com/api` unnecessarily stutters and should be avoided.
 
 ## Abstract Implementation
+
 Every API for a given company should be hosted as paths underneath this host, regardless of how the APIs are implemented.
 
 For example, a single company may have both User-centric and Tenant-centric APIs, which may be served by two different logical services. These should both be on the `api.mycompany.com` host, like: `api.mycompany.com/tenants` and `api.mycompany.com/users`, rather than e.g. `api-users.mycompany.com`.
 
 ## Environments and URLs
+
 Less to do with APIs and more to do with setting up environments in general, but: If you have both a production and staging environment, the best way to configure your staging environment is via the registration of an entirely new domain name, such as having your website on `mycompany.com` and `mycompany-staging.com`, and API on `api.mycompany.com` and `api.mycompany-staging.com`, for production and staging respectively.
 
 The second best way is to leverage the hierarchy intrinsic to DNS; `mycompany.com` hosts your website on `mycompany.com` and API on `api.mycompany.com`, while the staging environment lives on `staging.mycompany.com` and `api.staging.mycompany.com`.
 
 ## Versioning
+
 Its become something of a meme in the industry that every new API you write should start with `/v1`.
 
 My take is: Don't do this. URLs are hierarchical, and prefixing the entire API with a `/v1` communicates that when a `/v2` happens every API will be replaced. The issue is, we don't usually break an entire API all at once; we break and are forced to version individual endpoints. You don't want an API surface that looks like:
@@ -32,6 +40,7 @@ One situation where putting the API version in the URL may make sense is when wr
 Instead, consider implementing versioning as an HTTP header. Something simple like requiring a `X-VERSION: 1` header can make sense, or assuming `X-VERSION: 1` when a version header is not provided. Some popular APIs implement this as a date field, so the server can deduce which version of the API to serve based upon the date the client was written; e.g. `X-VERSION: 2024-04-04` may return the "v1" API, but `X-VERSION: 2024-05-05` may return the "v2" API.
 
 ## Methods and Meanings
+
 There are six HTTP methods which your endpoints should use.
 
 | Method   | Description                                          |
