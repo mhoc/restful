@@ -1,18 +1,22 @@
 This is a collection of some of the ideas I keep in mind while designing APIs and API endpoints.
+
 ## One API, Preferably In The Host
 The word "API" should appear once in any URL your server hosts.
 
 - `api.mycompany.com` is the most preferrable and common; a subdomain on the overall site.
 - `mycompany.com/api` as a path prefix also makes sense, in situations where we want the API to share the same root domain as e.g. the website.
 - `api.mycompany.com/api` unnecessarily stutters and should be avoided.
+
 ## Abstract Implementation
 Every API for a given company should be hosted as paths underneath this host, regardless of how the APIs are implemented.
 
 For example, a single company may have both User-centric and Tenant-centric APIs, which may be served by two different logical services. These should both be on the `api.mycompany.com` host, like: `api.mycompany.com/tenants` and `api.mycompany.com/users`, rather than e.g. `api-users.mycompany.com`.
+
 ## Environments and URLs
 Less to do with APIs and more to do with setting up environments in general, but: If you have both a production and staging environment, the best way to configure your staging environment is via the registration of an entirely new domain name, such as having your website on `mycompany.com` and `mycompany-staging.com`, and API on `api.mycompany.com` and `api.mycompany-staging.com`, for production and staging respectively.
 
 The second best way is to leverage the hierarchy intrinsic to DNS; `mycompany.com` hosts your website on `mycompany.com` and API on `api.mycompany.com`, while the staging environment lives on `staging.mycompany.com` and `api.staging.mycompany.com`.
+
 ## Versioning
 Its become something of a meme in the industry that every new API you write should start with `/v1`.
 
@@ -48,7 +52,9 @@ To query for a single user, you may leverage a method+path like `GET /users/:id
 To query for a single user's roles, you may leverage a method+path like `GET /users/:id/roles`.
 
 Paths should always be designed around a series of alternating nouns and IDs; a noun like 'users', then a user's ID, then attributes on that user, then IDs on those attributes, onward and onward.
+
 ## Verbs and Edge Cases
+
 Every word typed into the path of your URL should be a noun.
 
 You'll naturally come across examples with every API where the thing you're trying to do just doesn't make sense as a noun. Here's one example: Your system has some kind of synchronization procedure, and you want to kick off a manual invocation of this sync. When thinking of this in terms of RPCs, the call might be: `invokeSync(syncId: string)`. In a restful API, this might be: `POST /syncs/:sync_id/invocations`. We're "creating an invocation"; even if that doesn't create a persistent _thing_ in the database, it still fits into the restful world as a noun.
@@ -61,13 +67,17 @@ What if your API needs to support _both_ the actions of cancelling an in-progr
 - Delete the sync invocation entirely: `DELETE /syncs/:sync_id/invocations/:invocation_id`
 
 My point in going several steps down this path is: There is always a solution to these "my thing kinda looks like a verb" problems. Sometimes those solutions stretch the meaning of a "noun", or require some creativity. It helps if you think through the design of the entire system always keeping the nouns in mind; for example, maybe you aren't "cancelling a sync invocation", you're "creating a cancellation request for a sync invocation". Design the entire system under the impression that the only verbs you have in your lexicon are "create" "read" "update" and "delete".
+
 ## No Uppercase
+
 None of the nouns in your paths should contain uppercase characters; they should match the regex `[a-z0-9_]+`; lowercase characters, underscores, and I suppose if you really need them, digits. IDs may naturally contain uppercase and lowercase characters, which is reasonable and fine.
 
 The reason for this is mostly just consistency. It was once stated to me that some older devices which may connect to websites or APIs struggle with case sensitivity, so all-lowercase has wider support; this feels like a rare edge case, but given it doesn't _really_ matter and consistency is good, I follow all-lowercase.
 
 This rule applies equally to query parameters.
+
 ## Prefer Pluralization
+
 The nouns in your paths should generally be pluralized.
 
 - Good: `GET /users` and `GET /users/123`
@@ -82,6 +92,7 @@ The exception to this rule is for terminal path fragments, which may refer to si
 This example is contrived, and wouldn't exist in a real API, because most fields which make sense to be singular would make the most sense to simply be returned on the e.g. `GET /users/123` response object. But, it can happen; for example: imagine if the `birthday` field, in this example, often contains an extremely large amount of data such that we don't want to bundle it into the overall `user` object for performance reasons.
 
 ## Listing versus Fetching
+
 When using a `GET` request, whether that request returns one resource or a list of resources depends both on where you're querying in the alternation between nouns and IDs, and what you're querying for.
 
 - `GET /users` -> returns a list of users
@@ -90,6 +101,7 @@ When using a `GET` request, whether that request returns one resource or a lis
 - `GET /users/123/birthday` -> returns a single birthday
 
 ## Querying and Filtering
+
 The URL path itself should only contain globally unique IDs which uniquely select one resource from the list of all resources of that noun. For example:
 
 - Good: `GET /users/123123` (assuming `123123` is a globally unique ID)
@@ -101,7 +113,16 @@ Filter query parameters should prefer matching keys to the response object of ea
 
 Filter parameters can very quickly become more complex than simple string-to-string equivalence; for example, how would you represent a parameter that answers "return all users who are not enabled" (`status != enabled`)? I don't feel its appropriate to answer this here, but suffice to say that its a problem common and weird enough that it has caused many alternatives to REST to be invented. One opinion I have in this domain is: You shouldn't prematurely optimize your entire system when faced with this reality. A solution that looks like, for example, `status_neq=enabled` is preferrable to going all in with, I don't know, supporting writing SQL in your query parameters.
 
+## Dynamic Psuedo-IDs
+
+Imagine an API that queries for, as a contrived example, the commits in a git repo; like `GET /repos/:id/commits`. The corresponding API to fetch information for a single commit would be: `GET /repos/:id/commits/:hash`. Let's say we wanted to extrend this API surface to allow clients to fetch commit information for the latest commit in a repository; how might we do this?
+
+One agreeable way to think about this is to embed a concept of pseudo-IDs in this endpoint; in other words, a special value for `:hash` like `latest`. Clients may then query `GET /repos/:id/commits/latest`; `latest` acts like an ID in that it globally uniquely identifies one commit. Because commit hashes are usually encoded in hexadecimal, and the word `latest` is not a valid hex representation, there is no chance of collision between the word `latest` and a valid commit ID. Your system can easily distinguish between these two values, and it creates a more productive API for clients.
+
+Another valid way to do this would be to simply encode this as a filter on the listing commits endpoint; e.g. `GET /repos/:id/commits?order_by=date&order_dir=desc&limit=1`. 
+
 ## Pagination
+
 Every API endpoint which list resources and does not paginate will eventually break. Don't take shortcuts.
 
 Every resource listing endpoint should accept a `limit=N` query parameter. The implementation on the backend should enforce this, with a sensible default and a sensible maximum value.
@@ -129,6 +150,7 @@ You may also elect to use a response envelope, which is fine. More will be writt
 ```
 
 ## Put versus Patch
+
 The difference between `PUT` and `PATCH` is subtle, but strict.
 
 - `PUT` replaces all updatable fields in the target resource with the provided object.
@@ -145,7 +167,9 @@ Second example: Given an existing object like `{"lastName": "Johnson" }` and an 
 - `PATCH` would result in a final object `{ "lastName": "Johnson", "age": 56, "active": false }`.
 
 Observationally: While you may choose to invest time in building both, most APIs will get more mileage preferring `PATCH` over `PUT`.
+
 ## Array Fields
+
 APIs should, generally, not publish array fields on resources.
 
 - `GET /users/123` could return `{ "roles": ["admin"] }`, but this is not desirable.
@@ -158,7 +182,9 @@ Unbounded arrays may grow to be very large relative to the overall response size
 - To update items in an array: Without each items having a primary key, the only solution is to `PATCH` the entire array. Thus, for the pre-stated reasons, the better solution is to ensure each item in the array has its own primary key, and thus treat each item as its own restful resource: `PATCH /users/123/roles/456`.
     
 The exception to this rule enters when the order of items in the array field is material. When the ordering of items is material, then it becomes difficult to treat each item in the array as its own restful resource. You should ignore everything stated in this section and instead accept that any API you design will not be consistent nor convenient.
+
 ## Patching and Deleting Fields
+
 Imagine you have a schema for an object that resembles the following: `type User = { name?: string, /* ... */ }`.
 
 - An API like `PUT /users/:id` would allow for deleting the name, but would require the caller to know everything else about the user in order to delete just their name.
@@ -171,6 +197,7 @@ A general, consistent solution is to instead write another API: `DELETE /users/
 A second solution is to borrow a page from MongoDB or Firestore's book, and build a kind of DSL into your API like: `PATCH /users/:id` with a body `{ "name": { $delete: true } }`. This might be preferrable if you have a large number of fields which need to support deleting.
 
 ## Status Codes
+
 You should leverage HTTP whenever possible, and thus leverage the status codes HTTP provides.
 
 | Status Code | Description                                                                                                                                                                                                   |
@@ -203,7 +230,9 @@ I am not generally a fan of response envelopes, and I don't feel that APIs need 
 - When listing items via an array, a field like `total` to count the total number of items regardless of pagination is useful, but could be moved into an HTTP repsonse header like `X-TOTAL`.
 
 Use the platform.
+
 ## Errors
+
 When the server responds with a status code `>=400`, this is communicating that the server has entered an error state. When this happens, the server should respond with an error message in the response body, in plaintext.
 
 ```
