@@ -128,6 +128,8 @@ Imagine an API that queries for, as a contrived example, the commits in a git re
 
 One agreeable way to think about this is to embed a concept of pseudo-IDs in this endpoint; in other words, a special value for `:hash` like `latest`. Clients may then query `GET /repos/:id/commits/latest`; `latest` acts like an ID in that it globally uniquely identifies one commit. Because commit hashes are usually encoded in hexadecimal, and the word `latest` is not a valid hex representation, there is no chance of collision between the word `latest` and a valid commit ID. Your system can easily distinguish between these two values, and it creates a more productive API for clients.
 
+A downside to the strategy is that the endpoint may no longer be cacheable for long periods of time, whereas a more strict `:hash` endpoint is. Implementations of this idea should be aware of this downside.
+
 Another valid way to do this would be to simply encode this as a filter on the listing commits endpoint; e.g. `GET /repos/:id/commits?order_by=date&order_dir=desc&limit=1`. 
 
 ## Pagination
